@@ -1,0 +1,25 @@
+services:
+  mail:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+  database:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: conecta
+      POSTGRES_USER: conecta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD in your environment}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-25432}:5432"
+    volumes:
+      - conecta_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conecta -d conecta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  conecta_postgres:

@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+.data
+.backups
+*.log
+test-data/personas/*
+!test-data/personas/README.md

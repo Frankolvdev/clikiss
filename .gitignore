@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Server media (back up separately from PostgreSQL)
+/.data/
+
+!.env.example
+
+/.backups/
+
+# User-provided test media stay local; keep the folder instructions.
+/test-data/personas/*
+!/test-data/personas/README.md

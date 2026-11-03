@@ -1,0 +1,44 @@
+services:
+  database:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: conecta
+      POSTGRES_DB: conecta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conecta -d conecta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  app:
+    build:
+      context: ..
+      args:
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+        NEXT_PUBLIC_GOOGLE_MAP_ID: ${NEXT_PUBLIC_GOOGLE_MAP_ID}
+    restart: unless-stopped
+    env_file: ../.env.production
+    environment:
+      DATABASE_URL: postgresql://conecta:${POSTGRES_PASSWORD}@database:5432/conecta
+      REALTIME_HOST: 0.0.0.0
+      MEDIA_ROOT: /app/.data/media
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - media:/app/.data/media
+      - ../test-data/personas:/app/test-data/personas:ro
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+volumes:
+  postgres:
+  media:

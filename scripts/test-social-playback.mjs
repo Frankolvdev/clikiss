@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {spawn} from 'node:child_process';
+import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import nextEnv from '@next/env';
+import {Pool} from 'pg';
+import {hashPassword} from 'better-auth/crypto';
+import {chromium} from 'playwright';
+import ffmpeg from 'ffmpeg-static';
+import {removeMedia} from '../shared/media-storage.mjs';
+nextEnv.loadEnvConfig(process.cwd(),true);
+const origin=process.env.APP_URL??'http://localhost:3000';
+if(!['localhost','127.0.0.1'].includes(new URL(origin).hostname)||!['localhost','127.0.0.1'].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error('Solo pruebas locales.');
+const db=new Pool({connectionString:process.env.DATABASE_URL}),actor=randomUUID(),email=`playback-${randomUUID()}@example.test`,password=`Qa!${randomUUID()}`,temp=await mkdtemp(path.join(tmpdir(),'conecta-playback-'));let browser;
+try{
+ await db.query('INSERT INTO "user"(id,name,email,"emailVerified","createdAt","updatedAt") VALUES($1,\'QA Playback\',$2,true,now(),now())',[actor,email]);
+ await db.query('INSERT INTO account(id,"accountId","providerId","userId",password,"createdAt","updatedAt") VALUES($1,$2,\'credential\',$2,$3,now(),now())',[randomUUID(),actor,await hashPassword(password)]);
+ browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext({viewport:{width:1440,height:1000}});
+ const login=await context.request.post(origin+'/api/auth/sign-in/email',{data:{email,password},headers:{Origin:origin}});assert(login.ok());await context.request.get(origin+'/api/v1/me');
+ const profiles=await (await context.request.get(origin+'/api/v1/profiles')).json();assert(profiles.length>=51);assert(profiles.every((person)=>!person.name.includes('Prueba')&&!person.bio.toLowerCase().includes('prueba')));
+ const page=await context.newPage();await page.goto(origin);await page.getByRole('button',{name:/Momentos/}).click();
+ const rail=page.locator('.feed-stories');await page.getByRole('button',{name:'Historias siguientes'}).first().waitFor();assert.equal(await rail.evaluate((element)=>getComputedStyle(element).scrollbarWidth),'none');await page.getByRole('button',{name:'Historias siguientes'}).first().click();await page.waitForFunction(()=>document.querySelector('.feed-stories').scrollLeft>0);
+ await page.getByRole('button',{name:'Videos',exact:true}).click();const videos=page.locator('.feed-post .feed-media-frame video');await videos.first().waitFor();
+ await videos.first().evaluate((element)=>element.scrollIntoView({block:'center'}));await page.waitForFunction(()=>{const video=document.querySelector('.feed-post .feed-media-frame video');return video&&!video.paused&&video.currentTime>.1;});
+ await page.locator('.feed-post').first().getByRole('button',{name:'Activar sonido'}).click();
+ await videos.nth(1).evaluate((element)=>element.scrollIntoView({block:'center'}));await page.waitForFunction(()=>{const [a,b]=document.querySelectorAll('.feed-post .feed-media-frame video');return a?.paused&&b&&!b.paused&&b.currentTime>.1;});assert.equal(await videos.nth(1).evaluate((video)=>video.muted),false);
+ const feed=await (await context.request.get(origin+'/api/v1/feed?filter=video&limit=12')).json(),direct=feed.items.find((item)=>profiles.find((person)=>person.id===item.profileId)?.adventureAvailable);assert(direct);
+ const author=page.locator('.feed-author').filter({hasText:direct.person.name}).first();await author.click();const dialog=page.locator('.social-dialog');await dialog.waitFor();await dialog.getByRole('button',{name:'Videos',exact:true}).click();const profileVideo=dialog.locator('.feed-media-frame video').first();await profileVideo.waitFor();await profileVideo.evaluate((element)=>element.scrollIntoView({block:'center'}));await page.waitForFunction(()=>{const video=document.querySelector('.social-dialog .feed-media-frame video');return video&&!video.paused&&video.currentTime>.1;});
+ await dialog.getByRole('button',{name:'Conversar',exact:true}).click();await page.locator('.chat-header').getByText(direct.person.name,{exact:false}).waitFor();assert.equal(await page.locator('.social-dialog').count(),0);const size=await page.locator('.chat-header-avatar').evaluate((element)=>({width:element.getBoundingClientRect().width,height:element.getBoundingClientRect().height,border:getComputedStyle(element).borderRadius}));assert(Math.abs(size.width-size.height)<.25);assert.equal(size.border,'50%');
+ await page.goto(origin);const avatar=page.locator('.profile-photo .avatar-motion').first();await avatar.waitFor();await avatar.scrollIntoViewIfNeeded();await page.waitForFunction(()=>{const video=document.querySelector('.profile-photo .avatar-motion');return video&&!video.paused&&video.currentTime>.1;});const animation=await avatar.evaluate((video)=>({duration:video.duration,loop:video.loop,muted:video.muted}));assert(animation.duration<=3.1&&animation.loop&&animation.muted);
+ await new Promise((resolve,reject)=>{const child=spawn(ffmpeg,['-y','-f','lavfi','-i','color=c=red:s=120x160:d=4','-c:v','libx264','-pix_fmt','yuv420p',path.join(temp,'profile.mp4')],{stdio:'ignore',windowsHide:true});child.on('error',reject);child.on('exit',(code)=>{if(code===0)resolve();else reject(new Error('FIXTURE_FAILED'));});});
+ const upload=await context.request.post(origin+'/api/v1/media',{headers:{Origin:origin},multipart:{file:{name:'profile.mp4',mimeType:'video/mp4',buffer:await readFile(path.join(temp,'profile.mp4'))}}});assert.equal(upload.status(),201);const media=await upload.json();let ready=false;
+ for(let attempt=0;attempt<60;attempt++){const state=await (await context.request.get(origin+`/api/v1/media-status/${media.id}`)).json();if(state.status==='failed')throw new Error('VIDEO_FAILED');if(state.status==='ready'){ready=true;break;}await new Promise((resolve)=>setTimeout(resolve,1000));}assert(ready);
+ const assign=await context.request.post(origin+'/api/v1/social/me',{headers:{Origin:origin},data:{type:'photo',field:'avatar',mediaId:media.id}});assert(assign.ok());const self=await (await context.request.get(origin+'/api/v1/social/me')).json();assert(self.avatarVideoUrl);const clip=await context.request.get(origin+self.avatarVideoUrl);assert(clip.ok()&&(await clip.body()).length<250*1024);
+ await page.setViewportSize({width:390,height:844});await page.goto(origin);await page.getByRole('button',{name:/Momentos/}).click();await page.locator('.feed-stories').waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+ console.log('Social OK: carrusel sin barra, autoplay al desplazar, sonido compartido, videos dentro del perfil, chat desde Momentos, avatar circular, loops de tres segundos y carga de avatar en video.');
+}finally{
+ if(browser)await browser.close();const files=(await db.query('SELECT object_key,preview_key,loop_key FROM media_assets WHERE owner_id=$1',[actor])).rows;
+ await db.query('UPDATE profiles SET avatar_id=NULL,cover_id=NULL WHERE user_id=$1',[actor]);await db.query('DELETE FROM "user" WHERE id=$1',[actor]);for(const file of files)for(const object of [file.object_key,file.preview_key,file.loop_key].filter(Boolean))await removeMedia(object).catch(()=>{});await db.end();
+ if(path.dirname(path.resolve(temp))!==path.resolve(tmpdir())||!path.basename(temp).startsWith('conecta-playback-'))throw new Error('UNSAFE_TEMP_PATH');await rm(temp,{recursive:true,force:true});
+}
