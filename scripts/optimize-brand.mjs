@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import {mkdir,stat,readFile,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 
-const source = fileURLToPath(new URL('../assets/clikiss-logo-original.png.png', import.meta.url));
+const source = fileURLToPath(new URL('../assets/clikiss-logo-original.png', import.meta.url));
 const directory = new URL('../public/brand/', import.meta.url);
 await mkdir(directory, {recursive:true});
 // All in-app logos retain the complete supplied artwork, including its tagline.

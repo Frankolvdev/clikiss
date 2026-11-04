@@ -35,7 +35,7 @@ test('PostgreSQL call lifecycle, isolation, concurrency, timeout and cleanup',as
  await root.query(`CREATE SCHEMA ${schema}`);
  const db=new Pool({connectionString:process.env.DATABASE_URL,options:`-c search_path=${schema},public`,max:2});
  try{
-  await db.query('CREATE TABLE "user"(id text PRIMARY KEY,name text,"emailVerified" boolean DEFAULT true); CREATE TABLE profiles(user_id text,suspended_at timestamptz); CREATE TABLE conversations(id uuid PRIMARY KEY,user_low text,user_high text); CREATE TABLE user_blocks(user_id text,target_id text)');
+  await db.query('CREATE TABLE "user"(id text PRIMARY KEY,name text,"emailVerified" boolean DEFAULT true,"emailVerificationRequired" boolean DEFAULT true); CREATE TABLE profiles(user_id text,suspended_at timestamptz); CREATE TABLE conversations(id uuid PRIMARY KEY,user_low text,user_high text); CREATE TABLE user_blocks(user_id text,target_id text)');
   await db.query('CREATE TABLE application_settings(id boolean PRIMARY KEY,require_email_verification boolean); INSERT INTO application_settings VALUES(true,true)');
   await db.query(await readFile(new URL('../db/migrations/014_video_calls.sql',import.meta.url),'utf8'));
   const ids=Array.from({length:12},(_,i)=>`user-${i}`),clients=ids.map(()=>randomUUID());
@@ -78,9 +78,13 @@ test('PostgreSQL call lifecycle, isolation, concurrency, timeout and cleanup',as
   await db.query('UPDATE "user" SET "emailVerified"=false WHERE id=ANY($1::text[])',[[ids[4],ids[5]]]);
   await assert.rejects(start(4),error=>error.status===403);
   await db.query('UPDATE application_settings SET require_email_verification=false');
+  await assert.rejects(start(4),error=>error.status===403);
+  await db.query('UPDATE "user" SET "emailVerificationRequired"=false WHERE id=ANY($1::text[])',[[ids[4],ids[5]]]);
   const unverified=(await start(4)).id;
   await service.act(ids[5],{action:'accept',callId:unverified,clientId:clients[5]});
   await db.query('UPDATE application_settings SET require_email_verification=true');await cleanupCalls(db,config);
+  assert.equal((await service.state(ids[4],clients[4],unverified)).call.status,'connecting');
+  await db.query('UPDATE "user" SET "emailVerificationRequired"=true WHERE id=ANY($1::text[])',[[ids[4],ids[5]]]);await cleanupCalls(db,config);
   assert.equal((await service.state(ids[4],clients[4],unverified)).call.status,'ended');
   await db.query('UPDATE "user" SET "emailVerified"=true WHERE id=ANY($1::text[])',[[ids[4],ids[5]]]);
   // More callers than capacity arriving simultaneously must never overbook.

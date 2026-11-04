@@ -10,6 +10,7 @@ nextEnv.loadEnvConfig(process.cwd(),true);
 const origin=process.env.APP_URL??'http://localhost:3000';
 if(!['localhost','127.0.0.1'].includes(new URL(origin).hostname)||!['localhost','127.0.0.1'].includes(new URL(process.env.DATABASE_URL).hostname))throw Error('Local services only.');
 const db=new Pool({connectionString:process.env.DATABASE_URL}),ids=[],contexts=[],diagnostics=[];
+const deletionKeys=[];
 const tag=randomUUID(),password=`Original-${tag}!`,replacement=`Updated-${tag}!`,hash=await hashPassword(password);
 const browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL??'msedge',headless:true});
 await mkdir('.data/qa/admin-users',{recursive:true});
@@ -42,6 +43,8 @@ try{
  await page.goto(origin+'/admin');await page.getByRole('button',{name:'Usuarios',exact:true}).click();
  await page.getByRole('button',{name:'Registrar usuario',exact:true}).click();
  const modal=page.locator('dialog.admin-user-dialog');assert.equal(await modal.locator('form').evaluate(form=>form.noValidate),true);
+ async function centered(element){const box=await element.boundingBox(),viewport=page.viewportSize();assert(box&&viewport);assert(Math.abs(box.x+box.width/2-viewport.width/2)<3,'Dialog must be horizontally centered');assert(Math.abs(box.y+box.height/2-viewport.height/2)<3,'Dialog must be vertically centered');}
+ await centered(modal);
  await modal.getByRole('button',{name:'Crear cuenta',exact:true}).click();await modal.getByText('Escribe tu nombre.',{exact:true}).waitFor();
  await modal.getByLabel('Nombre',{exact:true}).fill(create.name);await modal.getByLabel('Correo electrónico',{exact:true}).fill(create.email);
  await modal.getByLabel('Contraseña',{exact:true}).fill(password);await modal.getByLabel('Confirmar contraseña',{exact:true}).fill(password);
@@ -82,7 +85,33 @@ try{
  const audits=(await db.query('SELECT details FROM audit_events WHERE actor_id=$1',[admin.id])).rows;assert(audits.length>=5);assert(!JSON.stringify(audits).includes(password));assert(!JSON.stringify(audits).includes(replacement));assert(!JSON.stringify(audits).includes(persisted));
  await page.locator('.dt-scroll-body').evaluate(el=>el.scrollLeft=0);await page.screenshot({path:'.data/qa/admin-users/desktop.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'.data/qa/admin-users/mobile.png',fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile page overflows');
- await page.getByRole('button',{name:'Registrar usuario',exact:true}).click();await modal.getByLabel('Nombre',{exact:true}).waitFor();await page.screenshot({path:'.data/qa/admin-users/mobile-form.png'});await page.keyboard.press('Escape');await modal.waitFor({state:'hidden'});
+ await page.getByRole('button',{name:'Registrar usuario',exact:true}).click();await modal.getByLabel('Nombre',{exact:true}).waitFor();await centered(modal);await page.screenshot({path:'.data/qa/admin-users/mobile-form.png'});await page.keyboard.press('Escape');await modal.waitFor({state:'hidden'});
+ const current=(await list(admin.context)).data.find(user=>user.id===createdId);
+ const deletion={action:'delete',userId:createdId,version:current.version,confirmEmail:create.email,reason:'Eliminación autorizada de cuenta de prueba'};
+ for(const actor of [moderator,support,member])assert.equal((await post(actor.context,deletion)).status(),403);
+ assert.equal((await post(admin.context,{...deletion,userId:admin.id,version:own.version,confirmEmail:admin.email})).status(),403);
+ assert.equal((await post(admin.context,{...deletion,confirmEmail:member.email})).status(),400);
+ assert.equal((await post(admin.context,{...deletion,version:'0'.repeat(32)})).status(),409);
+ const mediaId=randomUUID(),postId=randomUUID(),invitationId=randomUUID(),reviewId=randomUUID();deletionKeys.push('qa-delete-'+mediaId,'qa-delete-'+mediaId+'.preview','qa-delete-'+mediaId+'.loop');
+ await db.query('INSERT INTO media_assets(id,owner_id,object_key,preview_key,loop_key,mime,bytes,status) VALUES($1,$2,$3,$4,$5,\'image/webp\',1,\'ready\')',[mediaId,createdId,...deletionKeys]);
+ await db.query('UPDATE profiles SET avatar_id=$2,cover_id=$2,card_photo_id=$2 WHERE user_id=$1',[createdId,mediaId]);
+ await db.query('INSERT INTO posts(id,author_id,media_id) VALUES($1,$2,$3)',[postId,createdId,mediaId]);
+ await db.query('INSERT INTO review_invitations(id,owner_id,recipient_id) VALUES($1,$2,$3)',[invitationId,createdId,member.id]);
+ await db.query('INSERT INTO reviews(id,invitation_id,body,stars) VALUES($1,$2,\'Reseña de prueba\',5)',[reviewId,invitationId]);
+ await db.query('INSERT INTO reports(id,reporter_id,target_user_id,post_id,review_id) VALUES($1,$2,$3,$4,$5)',[randomUUID(),member.id,createdId,postId,reviewId]);
+ const oldAuditId=(await db.query('INSERT INTO audit_events(actor_id,action,target_id) VALUES($1,\'qa.delete-fixture\',$2) RETURNING id',[createdId,member.id])).rows[0].id;
+ await page.setViewportSize({width:1440,height:1000});await page.getByRole('button',{name:'Actualizar',exact:true}).click();
+ await page.getByRole('button',{name:'Eliminar a Qa Perfil Desde Formulario',exact:true}).click();await centered(modal);
+ await modal.getByRole('button',{name:'Cancelar',exact:true}).click();assert.equal((await db.query('SELECT 1 FROM "user" WHERE id=$1',[createdId])).rowCount,1);
+ await page.getByRole('button',{name:'Eliminar a Qa Perfil Desde Formulario',exact:true}).click();await page.setViewportSize({width:390,height:844});await centered(modal);
+ await modal.getByLabel('Correo para confirmar').fill(create.email);await modal.getByLabel('Motivo del cambio').fill(deletion.reason);await page.screenshot({path:'.data/qa/admin-users/delete-mobile.png'});
+ await modal.getByRole('button',{name:'Eliminar definitivamente',exact:true}).click();await modal.waitFor({state:'hidden'});
+ for(const [table,column] of [['user','id'],['account','userId'],['session','userId'],['profiles','user_id'],['media_assets','owner_id'],['posts','author_id']])assert.equal((await db.query(`SELECT 1 FROM "${table}" WHERE "${column}"=$1`,[createdId])).rowCount,0);
+ assert.equal((await db.query('SELECT 1 FROM media_deletions WHERE object_key=ANY($1::text[])',[deletionKeys])).rowCount,3);
+ assert.equal((await db.query('SELECT actor_id FROM audit_events WHERE id=$1',[oldAuditId])).rows[0].actor_id,null);
+ assert.equal((await db.query("SELECT 1 FROM audit_events WHERE actor_id=$1 AND target_id=$2 AND action='user.delete'",[admin.id,createdId])).rowCount,1);
+ assert.equal((await db.query('SELECT 1 FROM "user" WHERE id=$1',[member.id])).rowCount,1);
+ await page.setViewportSize({width:1440,height:1000});await search.fill(member.email);await page.getByRole('button',{name:'Suspender cuenta',exact:true}).click();await centered(page.locator('.admin-confirm form'));await page.locator('.admin-confirm').getByRole('button',{name:'Cancelar',exact:true}).click();
  assert.deepEqual(diagnostics,[]);
  // Revoked privileges must also be checked inside the transaction.
  await db.query("UPDATE staff_roles SET role='support' WHERE user_id=$1",[admin.id]);assert.equal((await post(admin.context,create)).status(),403);
@@ -95,5 +124,6 @@ try{
 finally{
  await Promise.all(contexts.map(context=>context.close()));await browser.close();
  const extra=(await db.query('SELECT id FROM "user" WHERE email=$1',[`admin-users-created-${tag}@example.test`])).rows.map(u=>u.id);const all=[...ids,...extra];
+ await db.query('DELETE FROM reports WHERE reporter_id=ANY($1::text[]) OR target_user_id=ANY($1::text[])',[all]);await db.query('DELETE FROM reviews WHERE invitation_id IN(SELECT id FROM review_invitations WHERE owner_id=ANY($1::text[]) OR recipient_id=ANY($1::text[]))',[all]);await db.query('UPDATE profiles SET avatar_id=NULL,cover_id=NULL,card_photo_id=NULL WHERE user_id=ANY($1::text[])',[all]);await db.query('DELETE FROM posts WHERE author_id=ANY($1::text[])',[all]);await db.query('DELETE FROM media_deletions WHERE object_key=ANY($1::text[])',[deletionKeys]);
  await db.query('DELETE FROM audit_events WHERE actor_id=ANY($1::text[]) OR target_id=ANY($1::text[])',[all]);await db.query('DELETE FROM rate_limits WHERE actor_id=ANY($1::text[])',[all]);await db.query('DELETE FROM "user" WHERE id=ANY($1::text[])',[all]);await db.end();
 }

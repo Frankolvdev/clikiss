@@ -12,20 +12,21 @@ export function authentication(requireEmailVerification=true) {
   let instance=instances.get(requireEmailVerification);
   if (!instance) { const options: BetterAuthOptions = {
     database: database(), secret: process.env.BETTER_AUTH_SECRET,
+    user:{additionalFields:{emailVerificationRequired:{type:'boolean',required:false,defaultValue:true,input:false}}},
     hooks:{before:authFormValidation},
     databaseHooks: {user: {
       create: {before: async (user) => ({data: {...user,name:normalizePersonName(user.name)}})},
       update: {before: async (user) => ({data: {...user,...(typeof user.name==='string'?{name:normalizePersonName(user.name)}:{})}})},
     }},
-    plugins:[twoFactor({issuer:'ClicKiss'})],
+    plugins:[twoFactor({issuer:'CliKiss'})],
     baseURL: process.env.APP_URL,
     emailAndPassword: { enabled: true, minPasswordLength: 12, maxPasswordLength: 128,
       requireEmailVerification, revokeSessionsOnPasswordReset: true,
       onExistingUserSignUp:existingUserSignUp,
-      sendResetPassword: async ({user,url}) => { await sendAccountMail(user.email,'Restablece tu contraseña de ClicKiss',url); },
+      sendResetPassword: async ({user,url}) => { await sendAccountMail(user.email,'Restablece tu contraseña de CliKiss',url); },
     },
     emailVerification: { sendOnSignUp: requireEmailVerification, sendOnSignIn: requireEmailVerification, autoSignInAfterVerification: false,
-      sendVerificationEmail: async ({user,url}) => { await sendAccountMail(user.email,'Confirma tu cuenta de ClicKiss',url); },
+      sendVerificationEmail: async ({user,url}) => { await sendAccountMail(user.email,'Confirma tu cuenta de CliKiss',url); },
     },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
     socialProviders: {

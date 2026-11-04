@@ -2,7 +2,8 @@
 
 import {normalizePersonName} from "../shared/person-name.mjs";
 import { createContext, useContext, useCallback, useEffect, useId, useRef, useState, type ReactNode, type FormEvent } from "react";
-type User = { id: string; email: string; emailVerified:boolean; user_metadata: { display_name: string; full_name: string } };
+type User = { id: string; email: string; emailVerified:boolean; emailVerificationRequired:boolean; user_metadata: { display_name: string; full_name: string } };
+type PolicySessionUser={id:string;email:string;emailVerified:boolean;name:string;emailVerificationRequired?:boolean};
 type Provider = "google" | "facebook" | "apple" | "azure";
 import { X, ArrowRight, Mail, Apple } from "lucide-react";
 import AuthPasswordField from './auth-password-field';
@@ -40,7 +41,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [providers,setProviders] = useState<Record<string,boolean>>({});
   const [verificationRequired,setVerificationRequired]=useState(true);
   const [optionsReady,setOptionsReady]=useState(false);
-  const canUseAccount=Boolean(user&&(user.emailVerified||!verificationRequired));
+  const canUseAccount=Boolean(user&&(user.emailVerified||!user.emailVerificationRequired));
   const loadAuthOptions=useCallback(async()=>{
     const controller=new AbortController(),timeout=window.setTimeout(()=>controller.abort(),5000);
     try{
@@ -79,12 +80,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("conecta-auth-required", login);
   }, [refetchSession,loadAuthOptions]);
   useEffect(() => {
-    const current = session.data?.user;
+    const current = session.data?.user as PolicySessionUser | undefined;
     const timer = window.setTimeout(() => {
       if (accountId.current !== (current?.id ?? null)) { clearSocialCache(); accountId.current = current?.id ?? null; }
-      setUser(current ? { id: current.id, email: current.email, emailVerified:current.emailVerified, user_metadata: { display_name: current.name, full_name: current.name } } : null);
+      setUser(current ? { id: current.id, email: current.email, emailVerified:current.emailVerified,emailVerificationRequired:current.emailVerificationRequired!==false, user_metadata: { display_name: current.name, full_name: current.name } } : null);
       setReady(previous=>previous||initialCheckExpired||(!session.isPending&&optionsReady));
-      if (current&&optionsReady) { setMode((value)=>value === "reset" ? value : current.emailVerified||!verificationRequired ? null : "verify"); if(!current.emailVerified&&verificationRequired)setEmail(current.email); setPassword(""); }
+      if (current&&optionsReady) { setMode((value)=>value === "reset" ? value : current.emailVerified||current.emailVerificationRequired===false ? null : "verify"); if(!current.emailVerified&&current.emailVerificationRequired!==false)setEmail(current.email); setPassword(""); }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [session.data, session.isPending,verificationRequired,optionsReady,initialCheckExpired]);

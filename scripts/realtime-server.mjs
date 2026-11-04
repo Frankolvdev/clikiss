@@ -31,7 +31,7 @@ server.on('upgrade',async(request,connection,head)=>{
   // Atomic DELETE makes each ticket single use, even on multiple realtime processes.
   const result=await pool.query(`DELETE FROM realtime_tickets t USING session s,"user" u
    WHERE t.token_hash=$1 AND t.expires_at>now() AND s.id=t.session_id AND s."expiresAt">now() AND u.id=s."userId"
-   AND (u."emailVerified" OR NOT COALESCE((SELECT require_email_verification FROM application_settings WHERE id=true),true))
+   AND (u."emailVerified" OR NOT u."emailVerificationRequired")
    RETURNING s.id AS session_id,s."userId" AS user_id`,[hash]);
   const identity=result.rows[0];if(!identity||connection.destroyed)return reject();
   wss.handleUpgrade(request,connection,head,(socket)=>{

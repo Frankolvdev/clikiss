@@ -24,7 +24,7 @@ export async function cleanupCalls(db,config=callConfig()){
    (status<>'ringing' AND (caller_seen<now()-interval '75 seconds' OR callee_seen<now()-interval '75 seconds')) OR
    created_at<now()-$1::int*interval '1 minute' OR
    EXISTS(SELECT 1 FROM profiles p WHERE p.user_id IN(v.caller_id,v.callee_id) AND p.suspended_at IS NOT NULL) OR
-   (COALESCE((SELECT require_email_verification FROM application_settings WHERE id=true),true) AND EXISTS(SELECT 1 FROM "user" u WHERE u.id IN(v.caller_id,v.callee_id) AND NOT u."emailVerified")) OR
+   EXISTS(SELECT 1 FROM "user" u WHERE u.id IN(v.caller_id,v.callee_id) AND u."emailVerificationRequired" AND NOT u."emailVerified") OR
    EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=v.caller_id AND b.target_id=v.callee_id) OR (b.user_id=v.callee_id AND b.target_id=v.caller_id))
   )`,[config.maxMinutes]);
  // Signals are transient and disappear on hangup; abandoned data is bounded as well.
@@ -44,7 +44,7 @@ export function createCallService(db,{config=callConfig(),measure=()=>measureCal
    c.user_low=LEAST($1::text,$2::text) AND c.user_high=GREATEST($1::text,$2::text)
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=$1 AND b.target_id=$2) OR (b.user_id=$2 AND b.target_id=$1))
    AND NOT EXISTS(SELECT 1 FROM profiles p WHERE p.user_id IN($1,$2) AND p.suspended_at IS NOT NULL)
-   AND EXISTS(SELECT 1 FROM "user" u WHERE u.id=$2 AND (u."emailVerified" OR NOT COALESCE((SELECT require_email_verification FROM application_settings WHERE id=true),true)))`,[userId,targetId])).rows[0];
+   AND EXISTS(SELECT 1 FROM "user" u WHERE u.id=$2 AND (u."emailVerified" OR NOT u."emailVerificationRequired"))`,[userId,targetId])).rows[0];
   if(!row||userId===targetId)throw new CallError(403,'Necesitas una conversación autorizada para llamar. Envía primero un mensaje.');
   return row.id;
  }

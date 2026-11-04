@@ -9,7 +9,7 @@ import {AdminUserError,listAdminUsers,saveAdminUser} from '../shared/admin-users
 
 export async function adminUsers(request:Request,actorId:string,role:string){
  if(request.method==='GET')return json(await listAdminUsers(database(),new URL(request.url).searchParams));
- if(role!=='admin')throw new HttpError(403,'Solo administración puede crear y editar cuentas o cambiar contraseñas.');
+ if(role!=='admin')throw new HttpError(403,'Solo administración puede crear, editar o eliminar cuentas y cambiar contraseñas.');
  if(!await allowRequest('admin-users-write',actorId,30))throw new HttpError(429,'Demasiados cambios. Espera un momento.');
  const parsed=adminUserSchema.safeParse(await body(request,z.unknown()));
  if(!parsed.success){const fieldErrors:Record<string,string>={};for(const issue of parsed.error.issues){const field=String(issue.path[0]??'form');fieldErrors[field]??=issue.message;}return json({message:'Revisa los campos indicados.',fieldErrors},400);}

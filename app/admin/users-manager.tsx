@@ -45,6 +45,7 @@ export default function UsersManager({role,userId,version,onAction,onSelfChange}
    <Column data="created_at" title="Registro">{(value:string)=><time dateTime={value}>{new Date(value).toLocaleDateString('es-MX')}</time>}</Column>
    <Column data={null} title="Acciones" options={{orderable:false,searchable:false}}>{(_value:unknown,_type:string,row:ManagedUser)=><div className="user-row-actions">
     {role==='admin'&&<><button aria-label={`Editar a ${row.name}`} onClick={()=>setEditor({action:'edit',user:row})}>Editar</button><button aria-label={`Cambiar contraseña de ${row.name}`} onClick={()=>setEditor({action:'password',user:row})}>Contraseña</button></>}
+    {role==='admin'&&row.id!==userId&&<button className="user-danger" aria-label={`Eliminar a ${row.name}`} onClick={()=>setEditor({action:'delete',user:row})}>Eliminar</button>}
     {role!=='support'&&row.id!==userId&&(role==='admin'||!row.role)&&<button onClick={()=>onAction({action:row.suspended_at?'restore':'suspend',userId:row.id})}>{row.suspended_at?'Restaurar cuenta':'Suspender cuenta'}</button>}
     {role==='admin'&&row.id!==userId&&<select aria-label={`Cambiar rol de ${row.name}`} value={row.role??'none'} onChange={event=>onAction({action:'role',userId:row.id,role:event.target.value})}>{Object.entries(roles).map(([value,text])=><option key={value} value={value}>{text}</option>)}</select>}
     {role==='support'&&<span>Solo consulta</span>}

@@ -53,6 +53,23 @@ export async function saveAdminUser(db,actorId,value,passwordHash){
    if(previous.version!==value.version)throw new AdminUserError(409,'La cuenta cambió. Actualiza la tabla y vuelve a abrir el formulario.');
    if(value.action==='edit'&&previous.role&&!value.verified)throw new AdminUserError(400,'Las cuentas del equipo deben mantener su correo confirmado.','verified');
   }
+  if(value.action==='delete'){
+   if(id===actorId)throw new AdminUserError(403,'No puedes eliminar tu propia cuenta desde administración.');
+   if(value.confirmEmail!==previous.email.toLowerCase())throw new AdminUserError(400,'El correo no coincide con la cuenta que vas a eliminar.','confirmEmail');
+   const sessionsRevoked=(await client.query('DELETE FROM session WHERE "userId"=$1',[id])).rowCount;
+   await client.query("UPDATE video_calls SET status='ended',ended_at=clock_timestamp(),end_reason='connection-lost' WHERE (caller_id=$1 OR callee_id=$1) AND status<>'ended'",[id]);
+   await client.query('DELETE FROM reports WHERE reporter_id=$1 OR target_user_id=$1 OR post_id IN(SELECT id FROM posts WHERE author_id=$1) OR review_id IN(SELECT r.id FROM reviews r JOIN review_invitations i ON i.id=r.invitation_id WHERE i.owner_id=$1 OR i.recipient_id=$1)',[id]);
+   await client.query('DELETE FROM reviews WHERE invitation_id IN(SELECT id FROM review_invitations WHERE owner_id=$1 OR recipient_id=$1)',[id]);
+   await client.query('UPDATE audit_events SET actor_id=NULL WHERE actor_id=$1',[id]);
+   await client.query('INSERT INTO media_deletions(object_key) SELECT object_key FROM media_assets WHERE owner_id=$1 UNION SELECT preview_key FROM media_assets WHERE owner_id=$1 AND preview_key IS NOT NULL UNION SELECT loop_key FROM media_assets WHERE owner_id=$1 AND loop_key IS NOT NULL ON CONFLICT DO NOTHING',[id]);
+   await client.query('UPDATE profiles SET avatar_id=NULL,cover_id=NULL,card_photo_id=NULL WHERE user_id=$1',[id]);
+   await client.query('DELETE FROM posts WHERE author_id=$1',[id]);
+   await client.query('DELETE FROM verification WHERE value=$1',[id]);
+   await client.query('DELETE FROM rate_limits WHERE actor_id=$1',[id]);
+   await client.query('DELETE FROM "user" WHERE id=$1',[id]);
+   await client.query('INSERT INTO audit_events(actor_id,action,target_id,details) VALUES($1,\'user.delete\',$2,$3)',[actorId,id,JSON.stringify({reason:value.reason,sessionsRevoked})]);
+   await client.query('COMMIT');return {ok:true,id,deleted:true,self:false,sessionRevoked:true,sessionsRevoked};
+  }
   if(value.action!=='password'&&(await client.query('SELECT id FROM "user" WHERE lower(email)=lower($1) AND id<>$2',[value.email,id])).rowCount)throw new AdminUserError(409,'Ya existe una cuenta con este correo.','email');
   if(value.action==='create'){
    await client.query('INSERT INTO "user"(id,name,email,"emailVerified","createdAt","updatedAt") VALUES($1,$2,$3,$4,clock_timestamp(),clock_timestamp())',[id,value.name,value.email,value.verified]);

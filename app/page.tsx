@@ -1,5 +1,5 @@
-import ConectaApp from "./client-app";
+import CliKissApp from "./client-app";
 
 export default function Home() {
-  return <ConectaApp />;
+  return <CliKissApp />;
 }

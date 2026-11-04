@@ -128,7 +128,7 @@ export default function SocialFeed({ people, onOpen }: { people: Person[]; onOpe
       const media = typeof resource === "string" ? await fetch(resource).then((response) => { if (!response.ok) throw new Error("No se pudo descargar el archivo."); return response.blob(); }) : resource;
       const extension = post.kind === "video" ? (media.type === "video/webm" ? "webm" : "mp4") : media.type.split("/")[1] || "jpg";
       const file = new File([media], `clikiss-${post.id}.${extension}`, { type: media.type });
-      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "Un momento en ClicKiss", text: post.caption });
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "Un momento en CliKiss", text: post.caption });
       else { const url = URL.createObjectURL(file); const link = document.createElement("a"); link.href = url; link.download = file.name; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 10000); }
     } catch (err) { if (!(err instanceof DOMException && err.name === "AbortError")) setError("No se pudo compartir este archivo."); }
   }

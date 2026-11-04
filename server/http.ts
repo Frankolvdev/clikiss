@@ -2,19 +2,18 @@ import "server-only";
 import { z } from "zod";
 import { authentication } from "./auth";
 import { isSuspended,allowRequest } from "./access";
-import {emailVerificationRequired} from './registration-settings';
 
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function viewer(request: Request) {
   if (!process.env.DATABASE_URL || !process.env.BETTER_AUTH_SECRET) return null;
   const session = await authentication().api.getSession({ headers: request.headers });
   if(session&&await isSuspended(session.user.id))throw new HttpError(403,"Esta cuenta está suspendida. Contacta con soporte.");
-  return session?.user ?? null;
+  return session?{...session.user,emailVerificationRequired:(session.user as typeof session.user & {emailVerificationRequired?:boolean}).emailVerificationRequired!==false}:null;
 }
 export async function requireUser(request: Request) {
   const user = await viewer(request);
   if (!user) throw new HttpError(401, "Inicia sesión para continuar.");
-  if (!user.emailVerified&&await emailVerificationRequired()) throw new HttpError(403, "Confirma tu correo para continuar.");
+  if (!user.emailVerified&&user.emailVerificationRequired!==false) throw new HttpError(403, "Confirma tu correo para continuar.");
   if(!['GET','HEAD'].includes(request.method)&&!await allowRequest(new URL(request.url).pathname.split("/").slice(0,4).join("/"),user.id,120))throw new HttpError(429,"Demasiadas solicitudes. Espera un momento.");
   return user;
 }

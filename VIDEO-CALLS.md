@@ -1,4 +1,4 @@
-# Videollamadas 1 a 1 de ClicKiss
+# Videollamadas 1 a 1 de CliKiss
 
 ## Arquitectura y capacidad
 

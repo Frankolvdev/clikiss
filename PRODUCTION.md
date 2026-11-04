@@ -1,4 +1,4 @@
-# Operación y despliegue de Conecta
+# Operación y despliegue de CliKiss
 
 ## Estado verificado localmente
 
@@ -22,7 +22,9 @@ El cambio de contraseña conserva el segundo factor, guarda únicamente el hash,
 
 En `/admin` → **Configuración**, un administrador puede cambiar **Exigir verificación de correo**. La migración `015_registration_settings.sql` conserva activada la verificación de forma predeterminada. La configuración se guarda en PostgreSQL, se comparte entre procesos y se aplica sin reiniciar la aplicación.
 
-Desactivada: registro e inicio de sesión sin confirmación y sin envío automático del enlace. El correo sigue figurando como pendiente de confirmar; no se marca falsamente como verificado. Activada de nuevo: las cuentas todavía sin verificar deben confirmar antes de usar la plataforma, incluido chat, WebSocket y videollamadas. Las sesiones del navegador actualizan la política al enfocar la ventana y periódicamente; las comprobaciones del servidor se aplican en cada petición y entrega de tiempo real. El acceso del equipo a administración sigue requiriendo correo confirmado.
+La migración `016_registration_email_policy.sql` guarda en cada cuenta la política vigente al registrarse. Desactivada: los registros nuevos entran automáticamente y conservan ese acceso aunque después se active el switch. Activada: los registros nuevos deben confirmar el correo. Desactivarla posteriormente no exime a cuentas que se registraron con verificación obligatoria. El correo no se marca falsamente como confirmado. HTTP, chat, WebSocket y videollamadas respetan la política individual. El equipo del backoffice siempre requiere correo realmente confirmado. Al migrar, las cuentas existentes conservan la exención si la configuración está desactivada en ese momento.
+
+La migración `017_preserve_existing_registration_exemptions.sql` recupera también las exenciones anteriores cuando el historial auditado muestra que la cuenta se creó con el switch apagado, aunque actualmente esté encendido. No modifica cuentas registradas después de aplicar la política individual.
 
 El cambio queda en auditoría. Si otra sesión modificó la configuración mientras la pantalla estaba abierta, se pide actualizar antes de guardar para no sobrescribirla.
 

@@ -23,4 +23,4 @@ export async function saveRegistrationSettings(db,actorId,required,revision){
 // Shared by realtime authorization. Re-evaluated on each delivery/heartbeat.
 export const verifiedSessionSql=`SELECT s.id FROM session s JOIN "user" u ON u.id=s."userId"
  WHERE s.id=ANY($1::text[]) AND s."expiresAt">now()
- AND (u."emailVerified" OR NOT COALESCE((SELECT require_email_verification FROM application_settings WHERE id=true),true))`;
+ AND (u."emailVerified" OR NOT u."emailVerificationRequired")`;

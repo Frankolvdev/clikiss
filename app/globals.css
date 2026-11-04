@@ -272,7 +272,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .adventure-grid { grid-template-columns: 1fr; }
   .adventure-photo { height: 340px; }
 }
-/* Conecta: charcoal surfaces, vivid red actions and restrained champagne accents. */
+/* CliKiss: charcoal surfaces, vivid red actions and restrained champagne accents. */
 ::selection { color: white; background: #b91f32; }
 .app-shell { background: radial-gradient(ellipse at 85% 0%, #e6002312, transparent 45%), radial-gradient(ellipse at 20% 85%, #e8bf4606, transparent 45%), var(--canvas); }
 .topbar { background: #030303e8; border-bottom-color: #e8bf4624; }

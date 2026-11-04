@@ -40,7 +40,7 @@ function matchesCity(location:string,filter:string){
  return normalize(location).includes(normalize(filter));
 }
 
-export default function ConectaApp() {
+export default function CliKissApp() {
  const [contentReady,setContentReady]=useState(false);
  const onContentReady=useCallback(()=>setContentReady(true),[]);
  return <><AuthProvider><SessionContent onContentReady={onContentReady}/></AuthProvider><AppSplash ready={contentReady}/></>;
@@ -48,10 +48,10 @@ export default function ConectaApp() {
 
 function SessionContent({onContentReady}:{onContentReady:()=>void}) {
   const { user, canUseAccount } = useAuth();
-  return <VideoCallProvider key={`${user?.id ?? 'visitor'}:${canUseAccount}`} userId={canUseAccount?user?.id:undefined}><ConectaContent onContentReady={onContentReady}/></VideoCallProvider>;
+  return <VideoCallProvider key={`${user?.id ?? 'visitor'}:${canUseAccount}`} userId={canUseAccount?user?.id:undefined}><CliKissContent onContentReady={onContentReady}/></VideoCallProvider>;
 }
 
-function ConectaContent({onContentReady}:{onContentReady:()=>void}) {
+function CliKissContent({onContentReady}:{onContentReady:()=>void}) {
   const { user, requireAccount, openAuth, signOut, canUseAccount } = useAuth();
   const realtimeStatus = useRealtime(canUseAccount ? user?.id : undefined);
   const {profiles:availableProfiles,setProfiles:setAvailableProfiles,status:directoryStatus,refresh:refreshDirectory}=useProfileDirectory(user?.id);
@@ -139,7 +139,7 @@ function ConectaContent({onContentReady}:{onContentReady:()=>void}) {
       if(detail.type==="message"&&(document.hidden||section!=="matches"||detail.targetId!==selectedChatId)){
         setToast("Tienes un nuevo mensaje.");
         if("Notification" in window && Notification.permission==="granted"){
-          try { const notification=new Notification("Nuevo mensaje en ClicKiss",{body:"Abre tus conversaciones para leerlo.",tag:`chat-${detail.targetId}`});
+          try { const notification=new Notification("Nuevo mensaje en CliKiss",{body:"Abre tus conversaciones para leerlo.",tag:`chat-${detail.targetId}`});
           notification.onclick=()=>{window.focus();if(detail.targetId)setActiveMatchId(detail.targetId);setSection("matches");notification.close();}; } catch { /* In-app alerts remain available. */ }
         }
       }
@@ -237,7 +237,7 @@ function ConectaContent({onContentReady}:{onContentReady:()=>void}) {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand mobile-brand" href="#inicio" aria-label="ClicKiss, inicio" onClick={(event) => { event.preventDefault(); setSection("discover"); }}>
+        <a className="brand mobile-brand" href="#inicio" aria-label="CliKiss, inicio" onClick={(event) => { event.preventDefault(); setSection("discover"); }}>
           <BrandLogo />
         </a>
         <div className="topbar-center"><span className="live-dot" /> Tu conexión. Tu manera.</div>
@@ -252,7 +252,7 @@ function ConectaContent({onContentReady}:{onContentReady:()=>void}) {
       {alertsOpen&&user&&<NotificationCenter items={chatState} contacts={contactProfiles} onClose={()=>setAlertsOpen(false)} onNotice={setToast} onOpen={id=>{setActiveMatchId(id);setSection("matches");setAlertsOpen(false);}}/>}
       <div className="app-body">
         <aside className="sidebar">
-          <a className="sidebar-brand" href="#inicio" aria-label="ClicKiss, inicio" onClick={(event) => { event.preventDefault(); setSection("discover"); }}><BrandLogo /></a>
+          <a className="sidebar-brand" href="#inicio" aria-label="CliKiss, inicio" onClick={(event) => { event.preventDefault(); setSection("discover"); }}><BrandLogo /></a>
           <div className="sidebar-profile"><SidebarAvatar key={currentUser.image || "initial"} image={user ? currentUser.image : undefined} name={user ? (currentUser.name || user.user_metadata.display_name || user.user_metadata.full_name || user.email) : undefined}/><div className="sidebar-user-copy"><strong>{user ? (user.user_metadata.display_name ?? user.user_metadata.full_name ?? "Tu cuenta") : "Tu próxima conexión"}</strong><span>{user ? "Tu espacio personal" : "Explora y encuentra tu chispa"}</span></div></div>
           <span className="sidebar-label">MENÚ</span>
           <nav className="side-nav" aria-label="Navegación principal">

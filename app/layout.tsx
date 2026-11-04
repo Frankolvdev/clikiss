@@ -12,8 +12,8 @@ import "./shell-layout.css";
 import "./video-calls.css";
 
 export const metadata: Metadata = {
-  title: "ClicKiss | Citas para todxs",
-  icons: {icon: '/brand/clikiss-icon.png', apple: '/brand/clikiss-apple.png'},
+  title: "CliKiss | Citas para todxs",
+  icons: {icon: '/brand/clikiss-icon.png?v=clikiss', apple: '/brand/clikiss-apple.png?v=clikiss'},
   description: "Conoce personas afines en un espacio cuidado y hecho para conexiones auténticas.",
 };
 
