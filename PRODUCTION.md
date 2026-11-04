@@ -14,6 +14,30 @@ PostgreSQL, cuentas confirmadas, recuperación, chat WebSocket, mapas/Places/rad
 
 Roles disponibles: `admin`, `moderator`, `support`, `none`. Support consulta usuarios/reportes; moderator modera publicaciones/reseñas y suspende usuarios sin rol; admin consulta auditoría y cambia roles. Los cambios requieren motivo y se registran. La suspensión revoca sesiones. En producción el panel exige TOTP por defecto. El alta de roles no tiene un endpoint público de bootstrap.
 
+En **Usuarios**, DataTables proporciona búsqueda, ordenación, filtros de rol/estado/confirmación de correo y paginación procesados en PostgreSQL (10, 25, 50 o 100 filas). Solo `admin` puede registrar cuentas, editar nombre/correo/ubicación/género/biografía y cambiar contraseñas. Los formularios validan también en el servidor, detectan correos duplicados y rechazan ediciones de versiones antiguas. Las cuentas nuevas completan su perfil y fecha de nacimiento al entrar. Confirmar un correo manualmente requiere verificar su titularidad; el equipo conserva siempre correo confirmado.
+
+El cambio de contraseña conserva el segundo factor, guarda únicamente el hash, revoca todas las sesiones y los enlaces de recuperación pendientes y termina las videollamadas activas. Cambiar el correo o retirar su confirmación también revoca sesiones. Los cambios quedan en auditoría sin contraseñas ni hashes. Si un administrador cambia su propia contraseña/correo debe iniciar sesión de nuevo. No se necesita una migración adicional para estas operaciones. `npm run test:admin-users` verifica la API y los formularios en escritorio y móvil usando cuentas temporales y servicios locales.
+
+## Confirmación de correo al registrarse
+
+En `/admin` → **Configuración**, un administrador puede cambiar **Exigir verificación de correo**. La migración `015_registration_settings.sql` conserva activada la verificación de forma predeterminada. La configuración se guarda en PostgreSQL, se comparte entre procesos y se aplica sin reiniciar la aplicación.
+
+Desactivada: registro e inicio de sesión sin confirmación y sin envío automático del enlace. El correo sigue figurando como pendiente de confirmar; no se marca falsamente como verificado. Activada de nuevo: las cuentas todavía sin verificar deben confirmar antes de usar la plataforma, incluido chat, WebSocket y videollamadas. Las sesiones del navegador actualizan la política al enfocar la ventana y periódicamente; las comprobaciones del servidor se aplican en cada petición y entrega de tiempo real. El acceso del equipo a administración sigue requiriendo correo confirmado.
+
+El cambio queda en auditoría. Si otra sesión modificó la configuración mientras la pantalla estaba abierta, se pide actualizar antes de guardar para no sobrescribirla.
+
+Después de subir esta versión al servidor, aplicar `npm run db:migrate` **dentro del servicio app de tu Compose de producción** antes de recrearlo. En el despliegue Clouding existente:
+
+```sh
+docker compose -p clikiss --env-file .env.production -f compose.clouding.yaml build app
+docker compose -p clikiss --env-file .env.production -f compose.clouding.yaml run --rm --no-deps app npm run db:migrate
+docker compose -p clikiss --env-file .env.production -f compose.clouding.yaml up -d --no-deps --force-recreate app
+```
+
+Pruebas locales: `npm run test:settings` y, con `npm run dev:qa` para aislar el correo en Mailpit, `npm run test:settings:browser`. La segunda prueba crea cuentas temporales y restaura el valor original de la política; no se debe ejecutar en producción.
+
+Los formularios de acceso usan validación propia por campo, sin avisos nativos de HTML5, y el servidor valida también nombre, correo y contraseña. Un registro con correo existente lleva a login conservando ese correo y limpiando la contraseña. Login distingue correo inexistente, contraseña incorrecta y cuenta con acceso social. El limitador de solicitudes de Better Auth se mantiene. `npm run test:auth:browser` comprueba estos flujos con una cuenta temporal local en escritorio y móvil.
+
 ## Accesos sociales
 
 Completar las variables privadas `GOOGLE_CLIENT_ID/SECRET`, `FACEBOOK_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/SECRET`, `MICROSOFT_CLIENT_ID/SECRET` de `.env.example`; registrar las aplicaciones correspondientes y permitir sus callbacks:

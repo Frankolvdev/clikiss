@@ -1,9 +1,12 @@
 import {Pool} from 'pg';
 import {removeMedia} from '../shared/media-storage.mjs';
 import nextEnv from '@next/env';
+import {cleanupCalls} from '../shared/video-calls.mjs';
 nextEnv.loadEnvConfig(process.cwd(),true);
 const db=new Pool({connectionString:process.env.DATABASE_URL});
 try{
+ await cleanupCalls(db);
+ await db.query("DELETE FROM video_calls WHERE ended_at<now()-interval '7 days'");
  await db.query("UPDATE media_assets SET status='failed' WHERE status='processing' AND processing_attempts>=3 AND processing_started_at<now()-interval '5 minutes'");
  await db.query('DELETE FROM realtime_tickets WHERE expires_at<now()');
  await db.query('DELETE FROM chat_typing WHERE expires_at<now()');

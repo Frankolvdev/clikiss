@@ -1,0 +1,13 @@
+.clikiss-logo { display: block; object-fit: contain; object-position: center; width: 100%; max-width: 100%; height: auto; flex-shrink: 0; }
+.brand .clikiss-logo { width: 96px; }
+.account-brand { justify-content: center; }
+.account-brand .clikiss-logo { width: 280px; }
+.account-panel .auth-mark:has(.clikiss-logo) { width: 132px; height: auto; background: none; box-shadow: none; border-radius: 0; }
+.auth-mark .clikiss-logo { width: 132px; }
+.admin-sidebar .admin-brand { width: 100%; flex-direction: column; flex-wrap: nowrap; justify-content: center; align-items: center; text-align: center; }
+.admin-brand .clikiss-logo { width: 180px; }
+.admin-sidebar .admin-brand span { padding: 0; text-align: center; }
+.admin-gate > .clikiss-logo { width: 300px; }
+.location-loading-emblem .clikiss-logo { position: relative; width: 76px; }
+.workspace-footer .clikiss-logo { width: 90px; }
+@media (max-width: 640px) { .brand .clikiss-logo { width: 72px; } }

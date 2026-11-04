@@ -12,6 +12,6 @@ export async function sendAccountMail(to:string,subject:string,url:string) {
  ...(!local&&process.env.SMTP_SECURE!=='true'?{requireTLS:true}:{}),
  ...(process.env.SMTP_USER?{auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD??''}}:{}),
  connectionTimeout:10000,socketTimeout:15000});
- await transport.sendMail({from:process.env.MAIL_FROM??'Conecta <cuentas@localhost>',to,subject,
- text:`${subject}\n\nAbre este enlace para continuar:\n${url}\n\nSi no solicitaste este correo, puedes ignorarlo.\nConecta`});
+ await transport.sendMail({from:(process.env.MAIL_FROM??'ClicKiss <cuentas@localhost>').replace(/^Conecta(?=\s*<)/,'ClicKiss'),to,subject,
+ text:`${subject}\n\nAbre este enlace para continuar:\n${url}\n\nSi no solicitaste este correo, puedes ignorarlo.\nClicKiss`});
 }

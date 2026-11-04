@@ -73,7 +73,7 @@ export async function testAccounts(request:Request,actorId:string){
   const lines=[['nombre','correo','contraseña','edad','género','ubicación'].map(csv).join(',')];
   for(const account of accounts){const credential=decryptTestCredential(account.credential_cipher);lines.push([account.name,credential.email,credential.password,account.age,account.gender,account.location].map(csv).join(','));}
   await db.query("INSERT INTO audit_events(actor_id,action,target_id) VALUES($1,'test-batch.export',$2)",[actorId,value.id]);
-  return new Response('\uFEFF'+lines.join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="conecta-pruebas-${value.id}.csv"`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+  return new Response('\uFEFF'+lines.join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="clikiss-pruebas-${value.id}.csv"`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  }
  if(value.action==='retry'){
   if(!enabled())throw new HttpError(403,'La generación está deshabilitada.');

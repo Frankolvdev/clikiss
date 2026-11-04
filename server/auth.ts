@@ -4,24 +4,28 @@ import { database } from "./db";
 import { sendAccountMail } from "./mail";
 import {twoFactor} from "better-auth/plugins";
 import {normalizePersonName} from "../shared/person-name.mjs";
+import {authFormValidation,existingUserSignUp} from './auth-form-hooks';
 
-let instance: ReturnType<typeof betterAuth> | undefined;
-export function authentication() {
+const instances = new Map<boolean,ReturnType<typeof betterAuth>>();
+export function authentication(requireEmailVerification=true) {
   if (!process.env.BETTER_AUTH_SECRET || !process.env.APP_URL) throw new Error("AUTH_NOT_CONFIGURED");
+  let instance=instances.get(requireEmailVerification);
   if (!instance) { const options: BetterAuthOptions = {
     database: database(), secret: process.env.BETTER_AUTH_SECRET,
+    hooks:{before:authFormValidation},
     databaseHooks: {user: {
       create: {before: async (user) => ({data: {...user,name:normalizePersonName(user.name)}})},
       update: {before: async (user) => ({data: {...user,...(typeof user.name==='string'?{name:normalizePersonName(user.name)}:{})}})},
     }},
-    plugins:[twoFactor({issuer:'Conecta'})],
+    plugins:[twoFactor({issuer:'ClicKiss'})],
     baseURL: process.env.APP_URL,
     emailAndPassword: { enabled: true, minPasswordLength: 12, maxPasswordLength: 128,
-      requireEmailVerification: true, revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({user,url}) => { await sendAccountMail(user.email,'Restablece tu contraseña de Conecta',url); },
+      requireEmailVerification, revokeSessionsOnPasswordReset: true,
+      onExistingUserSignUp:existingUserSignUp,
+      sendResetPassword: async ({user,url}) => { await sendAccountMail(user.email,'Restablece tu contraseña de ClicKiss',url); },
     },
-    emailVerification: { sendOnSignUp: true, sendOnSignIn: true, autoSignInAfterVerification: false,
-      sendVerificationEmail: async ({user,url}) => { await sendAccountMail(user.email,'Confirma tu cuenta de Conecta',url); },
+    emailVerification: { sendOnSignUp: requireEmailVerification, sendOnSignIn: requireEmailVerification, autoSignInAfterVerification: false,
+      sendVerificationEmail: async ({user,url}) => { await sendAccountMail(user.email,'Confirma tu cuenta de ClicKiss',url); },
     },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
     socialProviders: {
@@ -32,6 +36,6 @@ export function authentication() {
     },
     rateLimit: { enabled: true, window: 60, max: 60 },
     advanced: { useSecureCookies: process.env.NODE_ENV === "production" },
-  }; instance = betterAuth(options); }
+  }; instance = betterAuth(options); instances.set(requireEmailVerification,instance); }
   return instance;
 }

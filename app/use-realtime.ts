@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 import {send} from "./api-client";
 
-export type ChatEvent={type:"message"|"account"|"sync"|"read"|"typing";targetId?:string;until?:string|null};
+export type ChatEvent={type:"message"|"account"|"sync"|"read"|"typing"|"call";targetId?:string;until?:string|null};
 export function useRealtime(userId?:string){
  const [status,setStatus]=useState<"connecting"|"connected"|"offline">("connecting");
  useEffect(()=>{
@@ -26,7 +26,7 @@ export function useRealtime(userId?:string){
      try{
       const event=JSON.parse(message.data);
       if(event.type==="ready"){clearTimeout(timeout);attempt=0;setStatus("connected");emit({type:"sync"});}
-      else if(["message","account","sync","read","typing"].includes(event.type))emit(event);
+      else if(["message","account","sync","read","typing","call"].includes(event.type))emit(event);
      }catch{/* Ignore malformed frames. */}
     };
     current.onclose=(event)=>{clearTimeout(timeout);if(stopped||current!==socket)return;socket=null;if(event.code===4401){setStatus("offline");window.dispatchEvent(new Event("conecta-auth-required"));return;}retry();};

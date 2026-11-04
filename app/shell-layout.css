@@ -1,0 +1,30 @@
+.sidebar-brand { display: flex; justify-content: center; align-items: center; padding: 10px 32px 28px; margin-bottom: 22px; text-decoration: none; }
+.sidebar-brand .clikiss-logo { width: 156px; }
+.user-avatar { overflow: hidden; }
+.user-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.admin-shell .admin-sidebar { padding-top: 38px; }
+.admin-sidebar .admin-brand { padding: 0 12px 12px; }
+.admin-brand .clikiss-logo { width: 156px; }
+
+@media (min-width: 801px) {
+  .app-shell { --sidebar-width: 252px; }
+  .app-shell > .topbar { margin-left: var(--sidebar-width); padding-inline: clamp(24px, 3vw, 48px); }
+  .topbar .mobile-brand { display: none; }
+  .app-shell > .app-body { padding-left: var(--sidebar-width); }
+  .app-body > .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 11; width: var(--sidebar-width); height: 100dvh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-top: 30px; }
+  .app-body > .workspace { width: 100%; max-width: none; }
+  .sidebar-spacer { min-height: 32px; }
+}
+@media (min-width: 801px) and (max-width: 1050px) {
+  .app-shell { --sidebar-width: 224px; }
+  .sidebar-brand { padding-inline: 28px; }
+}
+@media (max-width: 800px) {
+  .app-shell > .topbar { height: auto; min-height: 84px; padding: calc(14px + env(safe-area-inset-top)) 20px 14px; gap: 16px; }
+  .topbar .mobile-brand { flex-shrink: 0; line-height: 0; }
+  .topbar .mobile-brand .clikiss-logo { width: 84px; }
+  .app-shell > .app-body { min-height: calc(100dvh - 84px - env(safe-area-inset-top)); }
+}
+@media (max-width: 370px) {
+  .app-shell > .topbar { padding-inline: 16px; gap: 12px; }
+}

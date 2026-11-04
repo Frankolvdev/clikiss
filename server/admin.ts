@@ -3,9 +3,13 @@ import {z} from "zod";
 import {database} from "./db";
 import {body,HttpError,json,requireUser} from "./http";
 import {testAccounts} from "./test-accounts";
+import {adminUsers} from './admin-users';
+import {videoCallMetrics} from './video-calls';
+import {registrationSettings,saveRegistrationSettings,SettingsError} from '../shared/registration-settings.mjs';
 
 export async function staff(request:Request){
  const user=await requireUser(request);
+ if(!user.emailVerified)throw new HttpError(403,'Confirma tu correo para acceder a administración.');
  const role=(await database().query('SELECT role FROM staff_roles WHERE user_id=$1',[user.id])).rows[0]?.role as 'admin'|'moderator'|'support'|undefined;
  if(!role)throw new HttpError(403,'No tienes acceso al panel de administración.');
  const enabled=Boolean((await database().query('SELECT "twoFactorEnabled" AS enabled FROM "user" WHERE id=$1',[user.id])).rows[0]?.enabled);
@@ -15,8 +19,17 @@ export async function admin(request:Request,section:string){
  const {user,role,enabled}=await staff(request),db=database();
  const required=process.env.NODE_ENV==='production'&&process.env.ENFORCE_STAFF_2FA!=='false';
  if(required&&!enabled){if(section==='overview'&&request.method==='GET')return json({role,counts:{},requiresTwoFactor:true,twoFactorEnabled:false});throw new HttpError(403,'Activa la autenticación de dos factores para continuar.');}
+ if(section==='user-management')return adminUsers(request,user.id,role);
+ if(section==='settings'){
+  if(role!=='admin')throw new HttpError(403,'Solo administración puede gestionar la configuración.');
+  if(request.method==='GET')return json(await registrationSettings(db));
+  const value=await body(request,z.object({requireEmailVerification:z.boolean(),revision:z.number().int().min(0)}));
+  try{return json(await saveRegistrationSettings(db,user.id,value.requireEmailVerification,value.revision));}
+  catch(error){if(error instanceof SettingsError)throw new HttpError(error.status,error.message);throw error;}
+ }
  if(section==='test-users'){if(role!=='admin')throw new HttpError(403,'Solo administración puede gestionar cuentas de prueba.');return testAccounts(request,user.id);}
  if(request.method==='GET'){
+  if(section==='calls'&&role==='admin')return json(await videoCallMetrics());
   const params=new URL(request.url).searchParams,q=(params.get('q')??'').slice(0,100),page=Math.max(0,Math.min(10000,Number(params.get('page'))||0));
   if(section==='overview'){
    const counts=(await db.query(`SELECT (SELECT count(*) FROM "user") AS users,(SELECT count(*) FROM profiles WHERE suspended_at IS NOT NULL) AS suspended,(SELECT count(*) FROM posts WHERE deleted_at IS NULL) AS posts,(SELECT count(*) FROM reports WHERE status='open') AS reports,(SELECT count(*) FROM media_assets WHERE status IN ('queued','processing')) AS queued`)).rows[0];return json({role,counts,twoFactorEnabled:enabled,requiresTwoFactor:false});

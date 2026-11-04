@@ -38,7 +38,7 @@ export async function messages(request: Request,target: string,action?:string) {
  const params=new URL(request.url).searchParams,before=params.get('before'),beforeId=params.get('beforeId');
  if(before&&!Number.isFinite(Date.parse(before)))throw new HttpError(400,'Cursor no válido.');
  if(beforeId)z.uuid().parse(beforeId);
- const rows=(await db.query(`SELECT id,body AS text,sender_id=$2 AS "fromMe",created_at,read_at FROM messages WHERE conversation_id=$1
+ const rows=(await db.query(`SELECT id,body AS text,sender_id=$2 AS "fromMe",created_at,to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,read_at FROM messages WHERE conversation_id=$1
  AND ($3::timestamptz IS NULL OR (created_at,id)<($3,COALESCE($4::uuid,'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid))) ORDER BY created_at DESC,id DESC LIMIT 50`,[conversation.id,user.id,before,beforeId])).rows.reverse();
- return json(rows.map((row)=>({id:row.id,text:row.text,fromMe:row.fromMe,time:new Intl.DateTimeFormat('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'}).format(row.created_at),createdAt:row.created_at,readAt:row.read_at})));
+ return json(rows.map((row)=>({id:row.id,text:row.text,fromMe:row.fromMe,time:new Intl.DateTimeFormat('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'}).format(row.created_at),createdAt:row.cursor_at,readAt:row.read_at})));
 }

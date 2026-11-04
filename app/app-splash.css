@@ -1,0 +1,20 @@
+.app-splash{position:fixed;inset:0;z-index:3000;isolation:isolate;display:grid;place-items:center;overflow:hidden;box-sizing:border-box;padding:32px;background:#080608;color:#f8ede8;font-family:var(--font-site);animation:splash-dismiss var(--splash-duration) ease-out forwards;animation-duration:var(--splash-duration)!important;animation-iteration-count:1!important}
+.app-splash::before{content:"";position:absolute;inset:14px;border:1px solid #e9be7912;border-radius:24px;pointer-events:none}
+.splash-ambience{position:absolute;inset:0;z-index:-1;overflow:hidden;background:radial-gradient(ellipse at 50% 44%,#6a12232e,transparent 62%)}
+.splash-ambience i{position:absolute;display:block;border-radius:50%;filter:blur(65px);opacity:.38;animation:splash-drift 6s ease-in-out infinite alternate}
+.splash-ambience i:first-child{width:min(500px,95vw);height:min(500px,95vw);top:0;left:calc(50% - 420px);background:#8f0b35}
+.splash-ambience i:last-child{width:350px;height:350px;right:calc(50% - 400px);bottom:5%;background:#7b1732;animation-delay:-3s}
+.splash-content{display:flex;flex-direction:column;align-items:center;text-align:center;width:min(100%,480px)}
+.splash-brand{position:relative;display:grid;place-items:center;width:min(350px,76vw,65svh);aspect-ratio:1}
+.splash-orbit{position:absolute;inset:0;border:1px solid #e1b37b14;border-radius:50%;box-shadow:0 0 80px #e6183910,inset 0 0 50px #e6183909}
+.splash-orbit::before,.splash-orbit::after{content:"";position:absolute;border-radius:50%;border:1px solid #ecbba80a;inset:14px}.splash-orbit::after{inset:-18px;border-style:dashed;border-color:#d0a76b0d}
+.splash-orbit i{position:absolute;inset:-1px;border:1px solid transparent;border-top-color:#ff577a8a;border-right-color:#f1b57233;border-radius:50%;animation:splash-orbit 3.6s linear infinite}
+.splash-orbit i::before{content:"";position:absolute;width:5px;height:5px;top:14%;right:14%;border-radius:50%;background:#ffd9a3;box-shadow:0 0 12px #ff8080}
+.splash-orbit i:last-child{inset:14px;border-top-color:transparent;border-bottom-color:#edbb7977;border-right-color:transparent;animation-direction:reverse;animation-duration:5.5s}.splash-orbit i:last-child::before{display:none}
+.splash-logo{position:relative;width:88%;height:auto;object-fit:contain;filter:drop-shadow(0 12px 26px #0008)}
+.splash-dots{display:flex;align-items:center;gap:5px;margin-top:38px}.splash-dots i{width:4px;height:4px;border-radius:50%;background:#f76d91;animation:splash-dot 1.4s ease-in-out infinite}.splash-dots i:nth-child(2){animation-delay:.18s}.splash-dots i:nth-child(3){animation-delay:.36s}
+/* CSS also releases the overlay if hydration or a JavaScript chunk is delayed. */
+@keyframes splash-dismiss{0%,85%{opacity:1;visibility:visible;pointer-events:auto}100%{opacity:0;visibility:hidden;pointer-events:none}}
+@keyframes splash-orbit{to{transform:rotate(360deg)}}@keyframes splash-drift{to{transform:translate(30px,25px) scale(1.1)}}@keyframes splash-dot{0%,70%,100%{opacity:.3;transform:translateY(0)}35%{opacity:1;transform:translateY(-3px)}}
+@media(max-width:640px){.app-splash::before{inset:10px;border-radius:20px}.splash-brand{width:min(300px,76vw,65svh)}}
+@media(prefers-reduced-motion:reduce){.app-splash{animation-timing-function:steps(1,end)}.splash-ambience i,.splash-orbit i,.splash-dots i{animation:none}.splash-dots i{opacity:.8}}

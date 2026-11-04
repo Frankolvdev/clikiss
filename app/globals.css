@@ -10,18 +10,19 @@
   --red: #e60023;
   --gold: #e8bf46;
   --gold-metal: linear-gradient(115deg, #9e741b 0%, #e6ba42 23%, #fff1b0 42%, #d1a32c 58%, #f5d874 77%, #b88a24 100%);
-  --display: "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-site: "Avenir Next", "Trebuchet MS", sans-serif;
+  --display: var(--font-site);
 }
 
 @theme inline {
   --color-background: var(--canvas);
   --color-foreground: var(--ink);
-  --font-sans: "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-sans: var(--font-site);
 }
 
 * { box-sizing: border-box; }
 html { background: var(--canvas); }
-body { margin: 0; color: var(--ink); background: var(--canvas); font-family: "Avenir Next", "Trebuchet MS", sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+body { margin: 0; color: var(--ink); background: var(--canvas); font-family: var(--font-site); font-size: 14px; -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #e8bf4660; outline-offset: 2px; }

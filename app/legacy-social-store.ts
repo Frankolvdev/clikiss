@@ -45,7 +45,7 @@ async function openDatabase(): Promise<IDBDatabase> {
     };
     request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
     request.onerror = () => reject(new Error("No fue posible abrir el almacenamiento local."));
-    request.onblocked = () => reject(new Error("Cierra otras pestañas de Conecta e inténtalo otra vez."));
+    request.onblocked = () => reject(new Error("Cierra otras pestañas de ClicKiss e inténtalo otra vez."));
   });
 }
 

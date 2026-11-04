@@ -49,4 +49,5 @@ next-env.d.ts
 
 # User-provided test media stay local; keep the folder instructions.
 /test-data/personas/*
+/test-data/personas.zip
 !/test-data/personas/README.md

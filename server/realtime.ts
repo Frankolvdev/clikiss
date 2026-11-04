@@ -4,11 +4,12 @@ import { isSuspended,allowRequest } from "./access";
 import { authentication } from "./auth";
 import { database } from "./db";
 import { HttpError,json } from "./http";
+import {emailVerificationRequired} from './registration-settings';
 
 export async function realtimeTicket(request:Request) {
  const session=await authentication().api.getSession({headers:request.headers});
  if(!session)throw new HttpError(401,"Inicia sesión para continuar.");
- if(!session.user.emailVerified)throw new HttpError(403,"Confirma tu correo para continuar.");
+ if(!session.user.emailVerified&&await emailVerificationRequired())throw new HttpError(403,"Confirma tu correo para continuar.");
  if(await isSuspended(session.user.id))throw new HttpError(403,"Cuenta suspendida.");
  if(!await allowRequest("realtime",session.user.id,30))throw new HttpError(429,"Espera un momento.");
  const token=randomBytes(32).toString('base64url');

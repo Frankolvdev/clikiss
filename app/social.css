@@ -213,7 +213,7 @@
   .social-feed .page-heading { flex-wrap: wrap; }
 }
 
-.experience-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: 1240px; margin: 0 auto 30px; padding: 0; border: 0; background: transparent; border-radius: 0; }
+.experience-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: none; margin: 0 0 30px; padding: 0; border: 0; background: transparent; border-radius: 0; }
 .experience-connections { --experience-image: url('/images/experience-connections.webp'); }
 .experience-adventure { --experience-image: url('/images/experience-adventure.webp'); }
 .experience-moments { --experience-image: url('/images/experience-moments.webp'); }

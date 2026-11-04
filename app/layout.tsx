@@ -7,9 +7,13 @@ import "./location-search.css";
 import "./photo-cropper.css";
 import "./social-editor.css";
 import "./notifications.css";
+import "./brand.css";
+import "./shell-layout.css";
+import "./video-calls.css";
 
 export const metadata: Metadata = {
-  title: "Conecta | Encuentros con intención",
+  title: "ClicKiss | Citas para todxs",
+  icons: {icon: '/brand/clikiss-icon.png', apple: '/brand/clikiss-apple.png'},
   description: "Conoce personas afines en un espacio cuidado y hecho para conexiones auténticas.",
 };
 

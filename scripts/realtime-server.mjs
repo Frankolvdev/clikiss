@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {Pool,Client} from 'pg';
 import {WebSocketServer,WebSocket} from 'ws';
 import nextEnv from '@next/env';
+import {verifiedSessionSql} from '../shared/registration-settings.mjs';
 
 nextEnv.loadEnvConfig(process.cwd(),process.env.NODE_ENV!=='production');
 if(!process.env.DATABASE_URL||!process.env.APP_URL)throw new Error('Configura DATABASE_URL y APP_URL antes de iniciar WebSockets.');
@@ -28,8 +29,9 @@ server.on('upgrade',async(request,connection,head)=>{
  try{
   const hash=createHash('sha256').update(token).digest('hex');
   // Atomic DELETE makes each ticket single use, even on multiple realtime processes.
-  const result=await pool.query(`DELETE FROM realtime_tickets t USING session s
-   WHERE t.token_hash=$1 AND t.expires_at>now() AND s.id=t.session_id AND s."expiresAt">now()
+  const result=await pool.query(`DELETE FROM realtime_tickets t USING session s,"user" u
+   WHERE t.token_hash=$1 AND t.expires_at>now() AND s.id=t.session_id AND s."expiresAt">now() AND u.id=s."userId"
+   AND (u."emailVerified" OR NOT COALESCE((SELECT require_email_verification FROM application_settings WHERE id=true),true))
    RETURNING s.id AS session_id,s."userId" AS user_id`,[hash]);
   const identity=result.rows[0];if(!identity||connection.destroyed)return reject();
   wss.handleUpgrade(request,connection,head,(socket)=>{
@@ -46,14 +48,14 @@ server.on('upgrade',async(request,connection,head)=>{
 
 async function notify(notification){
  let event;try{event=JSON.parse(notification.payload);}catch{return;}
- if(!['message','account','typing','read'].includes(event.type)||typeof event.conversationId!=='string')return;
+ if(!['message','account','typing','read','call'].includes(event.type)||typeof event.conversationId!=='string')return;
  try{
   const participants=(await pool.query(`SELECT c.user_low,c.user_high FROM conversations c WHERE c.id=$1 AND
    NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=c.user_low AND b.target_id=c.user_high) OR (b.user_id=c.user_high AND b.target_id=c.user_low))`,[event.conversationId])).rows[0];
   if(!participants)return;
   const recipients=[...sockets].filter((socket)=>[participants.user_low,participants.user_high].includes(socket.identity.user_id));
   if(!recipients.length)return;
-  const sessions=new Set((await pool.query('SELECT id FROM session WHERE id=ANY($1::text[]) AND "expiresAt">now()',[recipients.map((socket)=>socket.identity.session_id)])).rows.map((row)=>row.id));
+  const sessions=new Set((await pool.query(verifiedSessionSql,[recipients.map((socket)=>socket.identity.session_id)])).rows.map((row)=>row.id));
   const typing=event.type==='typing'?(await pool.query('SELECT user_id,expires_at FROM chat_typing WHERE conversation_id=$1',[event.conversationId])).rows:[];
   for(const socket of recipients){if(!sessions.has(socket.identity.session_id)){socket.close(4401,'Sesión finalizada.');continue;}const targetId=socket.identity.user_id===participants.user_low?participants.user_high:participants.user_low;send(socket,{type:event.type,targetId,...(event.type==='typing'?{until:typing.find((row)=>row.user_id===targetId)?.expires_at??null}:{})});}
  }catch{for(const socket of sockets)socket.close(1013,'Reconecta para sincronizar.');}
@@ -75,7 +77,7 @@ async function listen(){
 const heartbeat=setInterval(async()=>{
  try{
   const active=[...sockets];
-  const sessions=new Set(active.length?(await pool.query('SELECT id FROM session WHERE id=ANY($1::text[]) AND "expiresAt">now()',[active.map((socket)=>socket.identity.session_id)])).rows.map((row)=>row.id):[]);
+  const sessions=new Set(active.length?(await pool.query(verifiedSessionSql,[active.map((socket)=>socket.identity.session_id)])).rows.map((row)=>row.id):[]);
   for(const socket of active){if(!sessions.has(socket.identity.session_id)){socket.close(4401,'Sesión finalizada.');continue;}if(!socket.alive){socket.terminate();continue;}socket.alive=false;socket.ping();}
  }catch{for(const socket of sockets)socket.close(1013,'Reconecta para sincronizar.');}
 },20000);

@@ -1,0 +1,11 @@
+# Linux-only override for the EXISTING app Compose project.
+# Mount just the three read-only host counters, not the whole host filesystem.
+services:
+  app:
+    environment:
+      VIDEO_CALL_PROC_ROOT: /host-metrics
+      VIDEO_CALL_NETWORK_PATH: /host-metrics/net-dev
+    volumes:
+      - /proc/stat:/host-metrics/stat:ro
+      - /proc/meminfo:/host-metrics/meminfo:ro
+      - /proc/1/net/dev:/host-metrics/net-dev:ro

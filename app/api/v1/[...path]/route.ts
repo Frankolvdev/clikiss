@@ -9,17 +9,20 @@ import { nearby,saveLocation } from "../../../../server/locations";
 import { chatState } from "../../../../server/chat-state";
 import { admin } from "../../../../server/admin";
 import { blocks,report } from "../../../../server/safety";
+import {emailVerificationRequired} from "../../../../server/registration-settings";
+import { videoCalls } from "../../../../server/video-calls";
 
 async function handler(request:Request,context:{params:Promise<{path:string[]}>}) {
  try {
   const {path}=await context.params,route=path[0],method=request.method;
   if(method!=='GET')checkOrigin(request);
+  if(route==='calls'&&path.length===1&&['GET','POST'].includes(method))return await videoCalls(request);
   if(route==='media-status'&&path.length===2&&method==='GET')return await mediaStatus(request,path[1]);
   if(route==='admin'&&path.length===2&&['GET','POST'].includes(method))return await admin(request,path[1]);
   if(route==='blocks'&&['GET','POST'].includes(method))return await blocks(request);
   if(route==='reports'&&method==='POST')return await report(request);
   if(route==='chat-state'&&method==='GET')return await chatState(request);
-  if(route==='auth-options'&&method==='GET')return json({providers:{google:Boolean(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET),facebook:Boolean(process.env.FACEBOOK_CLIENT_ID&&process.env.FACEBOOK_CLIENT_SECRET),apple:Boolean(process.env.APPLE_CLIENT_ID&&process.env.APPLE_CLIENT_SECRET),azure:Boolean(process.env.MICROSOFT_CLIENT_ID&&process.env.MICROSOFT_CLIENT_SECRET)}});
+  if(route==='auth-options'&&method==='GET')return json({requireEmailVerification:await emailVerificationRequired(),providers:{google:Boolean(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET),facebook:Boolean(process.env.FACEBOOK_CLIENT_ID&&process.env.FACEBOOK_CLIENT_SECRET),apple:Boolean(process.env.APPLE_CLIENT_ID&&process.env.APPLE_CLIENT_SECRET),azure:Boolean(process.env.MICROSOFT_CLIENT_ID&&process.env.MICROSOFT_CLIENT_SECRET)}});
   if(route==='nearby'&&method==='GET')return await nearby(request);
   if(route==='location'&&['GET','PUT'].includes(method))return await saveLocation(request);
   if(route==='realtime-ticket'&&path.length===1&&method==='POST')return await realtimeTicket(request);
